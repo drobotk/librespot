@@ -3,7 +3,6 @@ use std::{
     future::Future,
     io,
     pin::Pin,
-    process::exit,
     sync::{Arc, OnceLock, RwLock, Weak},
     task::{Context, Poll},
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -368,7 +367,7 @@ impl Session {
                 info!("Please support Spotify and your artists and sign up for a premium account.");
 
                 // TODO: logout instead of exiting
-                exit(1);
+                // exit(1);
             }
         }
     }
