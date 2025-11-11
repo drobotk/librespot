@@ -20,6 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      pull-requests: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -49,9 +50,32 @@ jobs:
           tag: v${{ steps.get-version.outputs.VERSION }}
           version: ${{ steps.get-version.outputs.VERSION }}
 
-      - name: Commit version prepare
-        uses: stefanzweifel/git-auto-commit-action@v6
+      - name: Create PR to review automated changes
+        uses: peter-evans/create-pull-request@v7
         if: ${{ !env.ACT }}
         with:
-          commit_message: 'Prepare for v${{ steps.get-version.outputs.VERSION }} release'
-          file_pattern: '*.md *.toml *.lock'
+          commit-message: 'Preparations for v${{ steps.get-version.outputs.VERSION }}'
+          title: "Preparations for v${{ steps.get-version.outputs.VERSION }}"
+          branch: "prepare-release/v${{ steps.get-version.outputs.VERSION }}"
+          assignees: ${{ github.actor }}
+          body: |
+            This PR prepares for the next ${{ github.event.inputs.versionBump }} release v${{ steps.get-version.outputs.VERSION }}.
+
+            **Files that should be automatically modified:**
+            - `Cargo.toml` (version bump)
+              - `<crate>/Cargo.toml` (version bump)
+              > for patch versions only the necessary crates will receive an update
+            - `Cargo.lock` (only bumps own crate versions)
+            - `CHANGELOG.md` (finalize changelog for upcoming version)
+            
+            **Review checklist:**
+            - [ ] Confirm the version bump in `Cargo.toml` is correct
+            - [ ] Ensure `Cargo.lock` did only update our crates
+            - [ ] Review the changelog for accuracy and completeness
+            
+            Please verify these changes before merging.
+            
+            ---
+            After merging, continue by creating a new release with the tag `v${{ steps.get-version.outputs.VERSION }}`.
+
+            > See [PUBLISHING.md](https://github.com/librespot-org/librespot/blob/dev/PUBLISHING.md) for further infos.
