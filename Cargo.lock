@@ -1984,7 +1984,6 @@ dependencies = [
  "gstreamer",
  "gstreamer-app",
  "gstreamer-audio",
- "hex",
  "jack",
  "libpulse-binding",
  "libpulse-simple-binding",
