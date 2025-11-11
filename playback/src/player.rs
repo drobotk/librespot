@@ -1,9 +1,4 @@
-use std::{collections::HashMap, fmt, fs, fs::File, future::Future, io::{self, Read, Seek, SeekFrom}, mem, pin::Pin, process::exit, sync::Mutex, sync::{
-    Arc,
-    atomic::{AtomicUsize, Ordering},
-}, task::{Context, Poll}, thread, time, time::{Duration, Instant}};
-use std::time::UNIX_EPOCH;
-use time::SystemTime;
+use crate::SAMPLES_PER_SECOND;
 #[cfg(feature = "passthrough-decoder")]
 use crate::decoder::PassthroughDecoder;
 use crate::{
@@ -11,7 +6,9 @@ use crate::{
     audio_backend::Sink,
     config::{Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
     convert::Converter,
-    core::{Error, Session, SpotifyId, SpotifyUri, util::SeqGenerator, FileId, audio_key::AudioKey},
+    core::{
+        Error, FileId, Session, SpotifyId, SpotifyUri, audio_key::AudioKey, util::SeqGenerator,
+    },
     decoder::{AudioDecoder, AudioPacket, AudioPacketPosition, SymphoniaDecoder},
     local_file::{LocalFileLookup, create_local_file_lookup},
     metadata::{
@@ -19,18 +16,37 @@ use crate::{
         track::Tracks,
     },
     mixer::VolumeGetter,
-    protocol::playplay::{PlayPlayLicenseRequest, ContentType, Interactivity},
     playplay,
+    protocol::playplay::{ContentType, Interactivity, PlayPlayLicenseRequest},
 };
 use futures_util::{
     StreamExt, TryFutureExt, future, future::FusedFuture,
     stream::futures_unordered::FuturesUnordered,
 };
 use protobuf::EnumOrUnknown;
+use std::time::UNIX_EPOCH;
+use std::{
+    collections::HashMap,
+    fmt, fs,
+    fs::File,
+    future::Future,
+    io::{self, Read, Seek, SeekFrom},
+    mem,
+    pin::Pin,
+    process::exit,
+    sync::Mutex,
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    task::{Context, Poll},
+    thread, time,
+    time::{Duration, Instant},
+};
 use symphonia::core::io::MediaSource;
 use symphonia::core::probe::Hint;
+use time::SystemTime;
 use tokio::sync::{mpsc, oneshot};
-use crate::SAMPLES_PER_SECOND;
 
 const PRELOAD_NEXT_TRACK_BEFORE_END_DURATION_MS: u32 = 30000;
 pub const DB_VOLTAGE_RATIO: f64 = 20.0;
@@ -961,11 +977,7 @@ impl PlayerTrackLoader {
         }
     }
 
-    async fn get_audio_key(
-        &self,
-        track: SpotifyId,
-        file: FileId
-    ) -> Result<AudioKey, Error> {
+    async fn get_audio_key(&self, track: SpotifyId, file: FileId) -> Result<AudioKey, Error> {
         let timestamp = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .expect("system clock error")
@@ -980,12 +992,17 @@ impl PlayerTrackLoader {
             ..Default::default()
         };
 
-        let response = match self.session.spclient().get_playplay_key(&file, &request).await {
+        let response = match self
+            .session
+            .spclient()
+            .get_playplay_key(&file, &request)
+            .await
+        {
             Ok(resp) => resp,
             Err(_) => {
                 error!("{file} playplay request failed");
-                return self.session.audio_key().request(track, file).await
-            },
+                return self.session.audio_key().request(track, file).await;
+            }
         };
 
         if let Some(obfuscated_key) = response.obfuscated_key {
