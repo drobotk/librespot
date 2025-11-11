@@ -21,6 +21,7 @@ use crate::{
         extended_metadata::BatchedEntityRequest,
         extended_metadata::{BatchedExtensionResponse, EntityRequest, ExtensionQuery},
         extension_kind::ExtensionKind,
+        playplay::{PlayPlayLicenseRequest, PlayPlayLicenseResponse},
     },
     token::Token,
     util,
@@ -590,6 +591,26 @@ impl SpClient {
             )
             .await?;
         Ok(BatchedExtensionResponse::parse_from_bytes(&res)?)
+    }
+
+    pub async fn get_playplay_key(
+        &self,
+        file_id: &FileId,
+        request: &PlayPlayLicenseRequest,
+    ) -> Result<PlayPlayLicenseResponse, Error> {
+        let endpoint = format!(
+            "/playplay/v1/key/{}",
+            file_id.to_base16()?
+        );
+        let res = self
+            .request_with_protobuf(
+                &Method::POST,
+                &endpoint,
+                None,
+                request,
+            )
+            .await?;
+        Ok(PlayPlayLicenseResponse::parse_from_bytes(&res)?)
     }
 
     pub async fn get_metadata(&self, kind: ExtensionKind, id: &SpotifyUri) -> SpClientResult {

@@ -1,22 +1,9 @@
-use std::{
-    collections::HashMap,
-    fmt, fs,
-    fs::File,
-    future::Future,
-    io::{self, Read, Seek, SeekFrom},
-    mem,
-    pin::Pin,
-    process::exit,
-    sync::Mutex,
-    sync::{
-        Arc,
-        atomic::{AtomicUsize, Ordering},
-    },
-    task::{Context, Poll},
-    thread,
-    time::{Duration, Instant},
-};
-
+use std::{collections::HashMap, fmt, fs, fs::File, future::Future, io::{self, Read, Seek, SeekFrom}, mem, pin::Pin, process::exit, sync::Mutex, sync::{
+    Arc,
+    atomic::{AtomicUsize, Ordering},
+}, task::{Context, Poll}, thread, time, time::{Duration, Instant}};
+use std::time::UNIX_EPOCH;
+use time::SystemTime;
 #[cfg(feature = "passthrough-decoder")]
 use crate::decoder::PassthroughDecoder;
 use crate::{
@@ -24,22 +11,25 @@ use crate::{
     audio_backend::Sink,
     config::{Bitrate, NormalisationMethod, NormalisationType, PlayerConfig},
     convert::Converter,
-    core::{Error, Session, SpotifyId, SpotifyUri, util::SeqGenerator},
+    core::{Error, Session, SpotifyId, SpotifyUri, util::SeqGenerator, FileId, audio_key::AudioKey},
     decoder::{AudioDecoder, AudioPacket, AudioPacketPosition, SymphoniaDecoder},
     local_file::{LocalFileLookup, create_local_file_lookup},
-    metadata::audio::{AudioFileFormat, AudioFiles, AudioItem},
+    metadata::{
+        audio::{AudioFileFormat, AudioFiles, AudioItem, UniqueFields},
+        track::Tracks,
+    },
     mixer::VolumeGetter,
+    protocol::playplay::{PlayPlayLicenseRequest, ContentType, Interactivity},
+    playplay,
 };
 use futures_util::{
     StreamExt, TryFutureExt, future, future::FusedFuture,
     stream::futures_unordered::FuturesUnordered,
 };
-use librespot_metadata::{audio::UniqueFields, track::Tracks};
-
+use protobuf::EnumOrUnknown;
 use symphonia::core::io::MediaSource;
 use symphonia::core::probe::Hint;
 use tokio::sync::{mpsc, oneshot};
-
 use crate::SAMPLES_PER_SECOND;
 
 const PRELOAD_NEXT_TRACK_BEFORE_END_DURATION_MS: u32 = 30000;
@@ -971,6 +961,43 @@ impl PlayerTrackLoader {
         }
     }
 
+    async fn get_audio_key(
+        &self,
+        track: SpotifyId,
+        file: FileId
+    ) -> Result<AudioKey, Error> {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system clock error")
+            .as_secs() as i64;
+
+        let request = PlayPlayLicenseRequest {
+            version: Some(playplay::get_version()),
+            token: Some(playplay::get_key().to_vec()),
+            interactivity: Some(EnumOrUnknown::new(Interactivity::INTERACTIVE)),
+            content_type: Some(EnumOrUnknown::new(ContentType::AUDIO_TRACK)),
+            timestamp: Some(timestamp),
+            ..Default::default()
+        };
+
+        let response = match self.session.spclient().get_playplay_key(&file, &request).await {
+            Ok(resp) => resp,
+            Err(_) => {
+                error!("{file} playplay request failed");
+                return self.session.audio_key().request(track, file).await
+            },
+        };
+
+        if let Some(obfuscated_key) = response.obfuscated_key {
+            let file_id: [u8; 16] = file.0[..16].try_into().expect("invalid file id length");
+            let key: [u8; 16] = obfuscated_key.try_into().expect("invalid key length");
+            Ok(AudioKey(playplay::decrypt(key, file_id)))
+        } else {
+            error!("{file} playplay response has no key");
+            self.session.audio_key().request(track, file).await
+        }
+    }
+
     async fn load_remote_track(
         &self,
         track_uri: SpotifyUri,
@@ -1076,7 +1103,7 @@ impl PlayerTrackLoader {
             // Not all audio files are encrypted. If we can't get a key, try loading the track
             // without decryption. If the file was encrypted after all, the decoder will fail
             // parsing and bail out, so we should be safe from outputting ear-piercing noise.
-            let key = match self.session.audio_key().request(track_id, file_id).await {
+            let key = match self.get_audio_key(track_id, file_id).await {
                 Ok(key) => Some(key),
                 Err(e) => {
                     warn!("Unable to load key, continuing without decryption: {e}");

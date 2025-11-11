@@ -38,6 +38,7 @@ fn compile() {
         proto_dir.join("spotify/login5/v3/identifiers/identifiers.proto"),
         proto_dir.join("spotify/login5/v3/login5.proto"),
         proto_dir.join("spotify/login5/v3/user_info.proto"),
+        proto_dir.join("spotify/stream/playplay.proto"),
         proto_dir.join("storage-resolve.proto"),
         proto_dir.join("user_attributes.proto"),
         proto_dir.join("autoplay_context_request.proto"),
