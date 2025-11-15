@@ -985,7 +985,7 @@ impl PlayerTrackLoader {
 
         let request = PlayPlayLicenseRequest {
             version: Some(playplay::get_version()),
-            token: Some(playplay::get_key().to_vec()),
+            token: Some(playplay::get_token().to_vec()),
             interactivity: Some(EnumOrUnknown::new(Interactivity::INTERACTIVE)),
             content_type: Some(EnumOrUnknown::new(ContentType::AUDIO_TRACK)),
             timestamp: Some(timestamp),
@@ -1005,10 +1005,13 @@ impl PlayerTrackLoader {
             }
         };
 
-        if let Some(obfuscated_key) = response.obfuscated_key {
-            let file_id: [u8; 16] = file.0[..16].try_into().expect("invalid file id length");
-            let key: [u8; 16] = obfuscated_key.try_into().expect("invalid key length");
-            Ok(AudioKey(playplay::decrypt(key, file_id)))
+        if let Some(encrypted_key) = response.encrypted_key {
+            Ok(AudioKey(playplay::decrypt(
+                encrypted_key
+                    .try_into()
+                    .expect("invalid playplay encrypted key length"),
+                file.0[..16].try_into().expect("invalid file id length"),
+            )))
         } else {
             error!("{file} playplay response has no key");
             self.session.audio_key().request(track, file).await

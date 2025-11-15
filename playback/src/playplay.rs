@@ -1,7 +1,7 @@
 unsafe extern "C" {
     pub fn playplay_get_version() -> i32;
 
-    pub fn playplay_get_key(output_buffer: *mut u8, // 16 bytes
+    pub fn playplay_get_token(output_buffer: *mut u8, // 16 bytes
     );
 
     pub fn playplay_decrypt(
@@ -15,10 +15,10 @@ pub fn get_version() -> i32 {
     unsafe { playplay_get_version() }
 }
 
-pub fn get_key() -> [u8; 16] {
+pub fn get_token() -> [u8; 16] {
     let mut output = [0u8; 16];
     unsafe {
-        playplay_get_key(
+        playplay_get_token(
             output.as_mut_ptr(), // *mut u8
         );
     }
