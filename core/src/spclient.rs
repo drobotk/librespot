@@ -598,7 +598,7 @@ impl SpClient {
         file_id: &FileId,
         request: &PlayPlayLicenseRequest,
     ) -> Result<PlayPlayLicenseResponse, Error> {
-        let endpoint = format!("/playplay/v1/key/{}", file_id.to_base16()?);
+        let endpoint = format!("/playplay/v1/key/{}", file_id.to_base16());
         let res = self
             .request_with_protobuf(&Method::POST, &endpoint, None, request)
             .await?;
