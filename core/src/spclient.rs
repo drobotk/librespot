@@ -22,6 +22,7 @@ use crate::{
         extended_metadata::{BatchedExtensionResponse, EntityRequest, ExtensionQuery},
         extension_kind::ExtensionKind,
         playplay::{PlayPlayLicenseRequest, PlayPlayLicenseResponse},
+        gabito::{PublishEventsRequest, PublishEventsResponse}
     },
     token::Token,
     util,
@@ -593,18 +594,6 @@ impl SpClient {
         Ok(BatchedExtensionResponse::parse_from_bytes(&res)?)
     }
 
-    pub async fn get_playplay_key(
-        &self,
-        file_id: &FileId,
-        request: &PlayPlayLicenseRequest,
-    ) -> Result<PlayPlayLicenseResponse, Error> {
-        let endpoint = format!("/playplay/v1/key/{}", file_id.to_base16());
-        let res = self
-            .request_with_protobuf(&Method::POST, &endpoint, None, request)
-            .await?;
-        Ok(PlayPlayLicenseResponse::parse_from_bytes(&res)?)
-    }
-
     pub async fn get_metadata(&self, kind: ExtensionKind, id: &SpotifyUri) -> SpClientResult {
         let req = BatchedEntityRequest {
             entity_request: vec![EntityRequest {
@@ -969,5 +958,25 @@ impl SpClient {
             &NO_METRICS_AND_SALT,
         )
         .await
+    }
+
+    pub async fn get_playplay_key(
+        &self,
+        file_id: &FileId,
+        request: PlayPlayLicenseRequest,
+    ) -> Result<PlayPlayLicenseResponse, Error> {
+        let endpoint = format!("/playplay/v1/key/{}", file_id.to_base16());
+        let res = self
+            .request_with_protobuf(&Method::POST, &endpoint, None, &request)
+            .await?;
+        Ok(PlayPlayLicenseResponse::parse_from_bytes(&res)?)
+    }
+
+    pub async fn publish_events(
+        &self,
+        request: PublishEventsRequest,
+    ) -> Result<PublishEventsResponse, Error> {
+        let res = self.request_with_protobuf(&Method::POST, "/gabo-receiver-service/v3/events", None, &request).await?;
+	Ok(PublishEventsResponse::parse_from_bytes(&res)?)
     }
 }

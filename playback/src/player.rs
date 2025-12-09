@@ -995,7 +995,7 @@ impl PlayerTrackLoader {
         let response = match self
             .session
             .spclient()
-            .get_playplay_key(&file, &request)
+            .get_playplay_key(&file, request)
             .await
         {
             Ok(resp) => resp,
