@@ -21,8 +21,8 @@ use crate::{
         extended_metadata::BatchedEntityRequest,
         extended_metadata::{BatchedExtensionResponse, EntityRequest, ExtensionQuery},
         extension_kind::ExtensionKind,
+        gabito::{PublishEventsRequest, PublishEventsResponse},
         playplay::{PlayPlayLicenseRequest, PlayPlayLicenseResponse},
-        gabito::{PublishEventsRequest, PublishEventsResponse}
     },
     token::Token,
     util,
@@ -976,7 +976,14 @@ impl SpClient {
         &self,
         request: PublishEventsRequest,
     ) -> Result<PublishEventsResponse, Error> {
-        let res = self.request_with_protobuf(&Method::POST, "/gabo-receiver-service/v3/events", None, &request).await?;
-	Ok(PublishEventsResponse::parse_from_bytes(&res)?)
+        let res = self
+            .request_with_protobuf(
+                &Method::POST,
+                "/gabo-receiver-service/v3/events",
+                None,
+                &request,
+            )
+            .await?;
+        Ok(PublishEventsResponse::parse_from_bytes(&res)?)
     }
 }
